@@ -101,6 +101,10 @@ class Caliper(CMakePackage, CudaPackage, ROCmPackage):
     variant("vtune", default=False, description="Enable Intel Vtune support")
     variant("kokkos", default=True, when="@2.3.0:", description="Enable Kokkos profiling support")
     variant("tests", default=False, description="Enable tests")
+    # TODO change the 'when' argument for the next release of Caliper
+    variant(
+        "python", default=False, when="@master", description="Build Python bindings"
+    )
 
     depends_on("adiak@0.1:0", when="@2.2:2.10 +adiak")
     depends_on("adiak@0.4:0", when="@2.11: +adiak")
@@ -121,6 +125,9 @@ class Caliper(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("cmake", type="build")
     depends_on("python", type="build")
 
+    depends_on("python@3", when="+python", type=("build", "link", "run"))
+    depends_on("py-pybind11", when="+python", type={"build", "link", "run"})
+
     # sosflow support not yet in 2.0
     conflicts("+sosflow", "@2.0.0:2.11")
     conflicts("+adiak", "@:2.1")
@@ -140,6 +147,7 @@ class Caliper(CMakePackage, CudaPackage, ROCmPackage):
         args = [
             "-DBUILD_TESTING=Off",
             "-DBUILD_DOCS=Off",
+            "-DWITH_ARCH={}".format(str(spec.target)),
             self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
             self.define_from_variant("WITH_ADIAK", "adiak"),
             self.define_from_variant("WITH_GOTCHA", "gotcha"),
@@ -157,46 +165,51 @@ class Caliper(CMakePackage, CudaPackage, ROCmPackage):
             self.define_from_variant("WITH_VARIORUM", "variorum"),
             self.define_from_variant("WITH_VTUNE", "vtune"),
             self.define_from_variant("WITH_KOKKOS", "kokkos"),
+            self.define_from_variant("WITH_PYTHON_BINDINGS", "python"),
         ]
 
         if spec.satisfies("+papi"):
-            args.append("-DPAPI_PREFIX=%s" % spec["papi"].prefix)
+            args.append("-DPAPI_PREFIX={}".format(spec["papi"].prefix))
+            args.append("-DWITH_PAPI_RDPMC={}".format("TRUE" if spec["papi"].satisfies("+rdpmc") else "FALSE"))
         if spec.satisfies("+libdw"):
-            args.append("-DLIBDW_PREFIX=%s" % spec["elfutils"].prefix)
+            args.append("-DLIBDW_PREFIX={}".format(spec["elfutils"].prefix))
         if spec.satisfies("+libpfm"):
-            args.append("-DLIBPFM_INSTALL=%s" % spec["libpfm4"].prefix)
+            args.append("-DLIBPFM_INSTALL={}".format(spec["libpfm4"].prefix))
         if spec.satisfies("+sosflow"):
-            args.append("-DSOS_PREFIX=%s" % spec["sosflow"].prefix)
+            args.append("-DSOS_PREFIX={}".format(spec["sosflow"].prefix))
         if spec.satisfies("+variorum"):
-            args.append("-DVARIORUM_PREFIX=%s" % spec["variorum"].prefix)
+            args.append("-DVARIORUM_PREFIX={}".format(spec["variorum"].prefix))
 
         # -DWITH_CALLPATH was renamed -DWITH_LIBUNWIND in 2.5
         callpath_flag = "LIBUNWIND" if spec.satisfies("@2.5:") else "CALLPATH"
         if spec.satisfies("+libunwind"):
-            args.append("-DLIBUNWIND_PREFIX=%s" % spec["unwind"].prefix)
-            args.append("-DWITH_%s=On" % callpath_flag)
+            args.append("-DLIBUNWIND_PREFIX={}".format(spec["unwind"].prefix))
+            args.append("-DWITH_{}=On".format(callpath_flag))
         else:
-            args.append("-DWITH_%s=Off" % callpath_flag)
+            args.append("-DWITH_{}=Off".format(callpath_flag))
 
         if spec.satisfies("+mpi"):
-            args.append("-DMPI_C_COMPILER=%s" % spec["mpi"].mpicc)
-            args.append("-DMPI_CXX_COMPILER=%s" % spec["mpi"].mpicxx)
+            args.append("-DMPI_C_COMPILER={}".format(spec["mpi"].mpicc))
+            args.append("-DMPI_CXX_COMPILER={}".format(spec["mpi"].mpicxx))
 
         if spec.satisfies("+cuda"):
-            args.append("-DCUDA_TOOLKIT_ROOT_DIR=%s" % spec["cuda"].prefix)
+            args.append("-DCUDA_TOOLKIT_ROOT_DIR={}".format(spec["cuda"].prefix))
             # technically only works with cuda 10.2+, otherwise cupti is in
             # ${CUDA_TOOLKIT_ROOT_DIR}/extras/CUPTI
-            args.append("-DCUPTI_PREFIX=%s" % spec["cuda"].prefix)
+            args.append("-DCUPTI_PREFIX={}".format(spec["cuda"].prefix))
 
         if spec.satisfies("+vtune"):
             itt_dir = join_path(spec["intel-oneapi-vtune"].prefix, "vtune", "latest")
-            args.append("-DITT_PREFIX=%s" % itt_dir)
+            args.append("-DITT_PREFIX={}".format(itt_dir))
 
         if spec.satisfies("+rocm"):
             args.append("-DCMAKE_CXX_COMPILER={0}".format(spec["hip"].hipcc))
-            args.append("-DROCM_PREFIX=%s" % spec["hsa-rocr-dev"].prefix)
+            args.append("-DROCM_PREFIX={}".format(spec["hsa-rocr-dev"].prefix))
 
         return args
+
+    def setup_run_environment(self, env):
+        pass
 
     @run_after("install")
     def cache_test_sources(self):
