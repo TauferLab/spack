@@ -17,7 +17,8 @@ class Caliper(CachedCMakePackage, CudaPackage, ROCmPackage):
     """
 
     homepage = "https://github.com/LLNL/Caliper"
-    git = "https://github.com/LLNL/Caliper.git"
+    # git = "https://github.com/LLNL/Caliper.git"
+    git = "https://github.com/TauferLab/Caliper.git"
     url = "https://github.com/LLNL/Caliper/archive/v2.11.0.tar.gz"
     tags = ["e4s", "radiuss"]
 
@@ -28,6 +29,7 @@ class Caliper(CachedCMakePackage, CudaPackage, ROCmPackage):
     license("BSD-3-Clause")
 
     version("master", branch="master")
+    version("topdown_csx", branch="topdown-csx")
     version("2.11.0", sha256="b86b733cbb73495d5f3fe06e6a9885ec77365c8aa9195e7654581180adc2217c")
     version("2.10.0", sha256="14c4fb5edd5e67808d581523b4f8f05ace8549698c0e90d84b53171a77f58565")
     version("2.9.1", sha256="4771d630de505eff9227e0ec498d0da33ae6f9c34df23cb201b56181b8759e9e")
